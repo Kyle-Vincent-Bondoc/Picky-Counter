@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Picky Counter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #1e1e1e;
+      color: #f1f1f1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .container {
+      background: #2e2e2e;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #000;
+      text-align: center;
+      max-width: 500px;
+    }
+    .numbers {
+      margin: 10px 0;
+      font-size: 18px;
+    }
+    input {
+      padding: 5px;
+      margin: 5px;
+      width: 60px;
+      text-align: center;
+    }
+    input[type="number"] {
+      step: 1;
+    }
+    button {
+      padding: 10px 15px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 5px;
+      background: #4CAF50;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    .result {
+      margin-top: 15px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    #score {
+      font-size: 20px;
+      margin-bottom: 10px;
+      font-weight: bold;
+      color: #FFD700;
+    }
+    #timer {
+      font-size: 18px;
+      color: #ff5555;
+      margin-bottom: 15px;
+    }
+    #pc-says {
+      margin-top: 20px;
+      padding: 15px;
+      background: #333;
+      border-radius: 10px;
+      font-size: 18px;
+      font-style: italic;
+      box-shadow: 0 0 8px #111;
+      max-width: 500px;
+      text-align: center;
+    }
+    #pc-says h3 {
+      margin: 0 0 10px;
+      color: #FFD700;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Picky Counter</h2>
+    <p>A picky counter wants to pick a number! Match his interest to get points!</p>
+    <div id="score">Score: 0</div>
+    <div id="timer">Time left: 0s</div>
+    <div id="condition"></div>
+    <div class="numbers" id="numbers"></div>
+    
+    <p>Pick 3 numbers:</p>
+    <input type="number" id="pick1" step="1">
+    <input type="number" id="pick2" step="1">
+    <input type="number" id="pick3" step="1"><br>
+    
+    <button onclick="checkAnswer()">Submit</button>
+    <button onclick="checkNoAnswer()">No Valid Answer</button>
+    <div class="result" id="result"></div>
+  </div>
+
+  <div id="pc-says">
+    <h3>Picky Counter Says:</h3>
+    <p id="pc-message">🤔 Waiting...</p>
+  </div>
+
+  <script>
+    const condTypes = [
+      "sum_below", "diff_below",
+      "sum_above", "diff_above",
+      "sum_between", "diff_between",
+      "sum_not_between", "diff_not_between"
+    ];
+
+    // Message pools
+    const msgCorrect = ["Yeah!", "Thanks!", "Correct!", "Incredible!", "Thank you very much!"];
+    const msgWrong = ["C'mon!", "Wrong!!!", "I Trusted You!", "You have a skill issue!", "Be Smarter!"];
+    const msgTimeout = ["Too Slow!"];
+    const msgNoAnsWrong = ["You Really Can't Think!????"];
+    const msgNoAnsCorrect = ["Oopsie.", "Sorry..."];
+
+    let numbers = [];
+    let condType, condVal;
+    let score = 0;
+    let timerInterval;
+    let timeLeft;
+
+    function randInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function randChoice(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    // Show message for 3s, then reset to Waiting...
+    function setPcMessage(arr) {
+      const msgElem = document.getElementById("pc-message");
+      msgElem.textContent = randChoice(arr);
+      setTimeout(() => {
+        msgElem.textContent = "🤔 Waiting...";
+      }, 3000);
+    }
+
+    function generateCondition() {
+      condType = condTypes[randInt(0, condTypes.length - 1)];
+      if (condType.includes("between")) {
+        let x = randInt(-45, 45);
+        let y = randInt(-45, 45);
+        if (x > y) [x, y] = [y, x];
+        condVal = [x, y];
+      } else {
+        condVal = randInt(-45, 45);
+      }
+    }
+
+    function checkCondition(nums) {
+      let s = nums.reduce((a, b) => a + b, 0);
+      let d = Math.max(...nums) - Math.min(...nums);
+      switch (condType) {
+        case "sum_below": return s < condVal;
+        case "diff_below": return d < condVal;
+        case "sum_above": return s > condVal;
+        case "diff_above": return d > condVal;
+        case "sum_between": return s >= condVal[0] && s <= condVal[1];
+        case "diff_between": return d >= condVal[0] && d <= condVal[1];
+        case "sum_not_between": return !(s >= condVal[0] && s <= condVal[1]);
+        case "diff_not_between": return !(d >= condVal[0] && d <= condVal[1]);
+        default: return false;
+      }
+    }
+
+    function hasValidAnswer() {
+      for (let i = 0; i < numbers.length; i++) {
+        for (let j = i + 1; j < numbers.length; j++) {
+          for (let k = j + 1; k < numbers.length; k++) {
+            if (checkCondition([numbers[i], numbers[j], numbers[k]])) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    function startTimer(duration) {
+      clearInterval(timerInterval);
+      timeLeft = duration;
+      document.getElementById("timer").textContent = `Time left: ${timeLeft}s`;
+
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById("timer").textContent = `Time left: ${timeLeft}s`;
+
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          document.getElementById("result").textContent = "⌛ Time’s up!";
+          setPcMessage(msgTimeout);
+          setTimeout(newPuzzle, 1500);
+        }
+      }, 1000);
+    }
+
+    function newPuzzle() {
+      numbers = Array.from({length: randInt(8, 12)}, () => randInt(-15, 15));
+      generateCondition();
+      document.getElementById("numbers").textContent = "Numbers: " + numbers.join(", ");
+      document.getElementById("result").textContent = "";
+      document.getElementById("pick1").value = "";
+      document.getElementById("pick2").value = "";
+      document.getElementById("pick3").value = "";
+      document.getElementById("pc-message").textContent = "🤔 Waiting...";
+
+      let condText = "";
+      switch (condType) {
+        case "sum_below": condText = `Sum must be below ${condVal}`; break;
+        case "diff_below": condText = `Difference must be below ${condVal}`; break;
+        case "sum_above": condText = `Sum must be above ${condVal}`; break;
+        case "diff_above": condText = `Difference must be above ${condVal}`; break;
+        case "sum_between": condText = `Sum must be between ${condVal[0]} and ${condVal[1]}`; break;
+        case "diff_between": condText = `Difference must be between ${condVal[0]} and ${condVal[1]}`; break;
+        case "sum_not_between": condText = `Sum must NOT be between ${condVal[0]} and ${condVal[1]}`; break;
+        case "diff_not_between": condText = `Difference must NOT be between ${condVal[0]} and ${condVal[1]}`; break;
+      }
+      document.getElementById("condition").textContent = condText;
+
+      let duration = randInt(30, 90);
+      startTimer(duration);
+    }
+
+    function updateScore(points) {
+      score += points;
+      if (score < 0) score = 0;
+      document.getElementById("score").textContent = "Score: " + score;
+    }
+
+    function checkAnswer() {
+      clearInterval(timerInterval);
+
+      let picks = [
+        parseInt(document.getElementById("pick1").value),
+        parseInt(document.getElementById("pick2").value),
+        parseInt(document.getElementById("pick3").value)
+      ];
+
+      // validate numbers
+      if (picks.some(isNaN)) {
+        document.getElementById("result").textContent = "❌ Enter 3 valid numbers!";
+        setPcMessage(msgWrong);
+        return;
+      }
+
+      // check duplicates
+      if (new Set(picks).size !== picks.length) {
+        document.getElementById("result").textContent = "❌ No duplicate picks allowed!";
+        setPcMessage(msgWrong);
+        return;
+      }
+
+      // check that picks exist in the list
+      if (!picks.every(p => numbers.includes(p))) {
+        document.getElementById("result").textContent = "❌ Pick numbers from the list!";
+        setPcMessage(msgWrong);
+        return;
+      }
+
+      if (checkCondition(picks)) {
+        document.getElementById("result").textContent = "✅ Correct! (+10 points)";
+        updateScore(10);
+        setPcMessage(msgCorrect);
+      } else {
+        document.getElementById("result").textContent = "❌ Wrong! (-5 points)";
+        updateScore(-5);
+        setPcMessage(msgWrong);
+      }
+
+      setTimeout(newPuzzle, 1500);
+    }
+
+    function checkNoAnswer() {
+      clearInterval(timerInterval);
+
+      if (!hasValidAnswer()) {
+        document.getElementById("result").textContent = "✅ Correct! No valid answer. (+10 points)";
+        updateScore(10);
+        setPcMessage(msgNoAnsCorrect);
+      } else {
+        document.getElementById("result").textContent = "❌ Wrong! There was a valid answer. (-5 points)";
+        updateScore(-5);
+        setPcMessage(msgNoAnsWrong);
+      }
+
+      setTimeout(newPuzzle, 1500);
+    }
+
+    newPuzzle();
+  </script>
+</body>
+</html>
