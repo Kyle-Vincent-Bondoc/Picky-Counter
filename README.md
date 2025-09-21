@@ -22,3 +22,8 @@ There is a timer of 30-90 seconds to answer.
 And score is the amount of points you have.
 By getting something wrong you get 5 less points.
 Lastly, Picky counter says is what the picky counter is saying.
+
+---
+
+## Extra Notes
+This is a 1 file game.
